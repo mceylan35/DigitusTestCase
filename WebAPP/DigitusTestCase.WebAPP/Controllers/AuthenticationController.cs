@@ -1,4 +1,5 @@
 ﻿using DigitusTestCase.WebAPP.Models;
+using DigitusTestCase.WebAPP.Services.EmailService;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
@@ -10,10 +11,12 @@ namespace DigitusTestCase.WebAPP.Controllers
     {
         private UserManager<ApplicationUser> _userManager;
         private SignInManager<ApplicationUser> _signInManager;
-        public AuthenticationController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
+        private readonly IEmailService _emailService;
+        public AuthenticationController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IEmailService emailService)
         {
             _userManager = userManager;
-            _signInManager = signInManager; 
+            _signInManager = signInManager;
+            _emailService = emailService;
         }
         public IActionResult Register()
         {
@@ -23,29 +26,55 @@ namespace DigitusTestCase.WebAPP.Controllers
         [HttpPost]
         public async Task<IActionResult> Register(User user)
         {
-            if (ModelState.IsValid)
+            user.SurName = "asd";
+            user.MailCode = "asdas";
+          //  if (ModelState.IsValid)
             {
                 ApplicationUser appUser = new ApplicationUser
                 {
                     UserName = user.Name,
                     Email = user.Email
-                     
-                    
                    
                 };
 
                 IdentityResult result = await _userManager.CreateAsync(appUser, user.Password);
-                if (result.Succeeded)
-                    ViewBag.Message = "User Created Successfully";
-                else
+                if (!result.Succeeded)
                 {
-                    foreach (IdentityError error in result.Errors)
-                        ModelState.AddModelError("", error.Description);
+                    foreach (var error in result.Errors)
+                    {
+                        ModelState.TryAddModelError(error.Code, error.Description);
+                    }
+                    return View(user);
                 }
+                var token = await _userManager.GenerateEmailConfirmationTokenAsync(appUser);
+                 
+                var confirmationLink= Url.Action("ConfirmEmail","Authentication",new {token,email=user.Email},Request.Scheme);
+
+                sendVerificationEmail(user, confirmationLink, token); 
+               
             }
             return View(user);
         }
+        private void sendVerificationEmail(User user,string link, string token)
+        {
+            string message;
+           
+                // origin exists if request sent from browser single page app (e.g. Angular or React)
+                // so send link to verify via single page app
+                var verifyUrl = $"{link}";
+                message = $@"<p>Please click the below link to verify your email address:</p>
+                            <p><a href=""{verifyUrl}"">{verifyUrl}</a></p>";
+           
+            
 
+            _emailService.Send(
+                to: user.Email,
+                subject: "Sign-up Verification API - Verify Email",
+                html: $@"<h4>Verify Email</h4>
+                        <p>Thanks for registering!</p>
+                        {message}"
+            );
+        }
         public IActionResult Login()
         {
             return View();
@@ -116,6 +145,16 @@ namespace DigitusTestCase.WebAPP.Controllers
            
         }
 
+        public async Task<IActionResult> ConfirmEmail(string token, string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user is null)
+            {
+                return View("Error");
+            }
+            var result = await _userManager.ConfirmEmailAsync(user, token);
+            return View(result.Succeeded?nameof(ConfirmEmail):"Error");
+        }
 
         public async Task<IActionResult> LogOut()
         {
