@@ -32,9 +32,11 @@ namespace DigitusTestCase.WebAPP.Controllers
             {
                 ApplicationUser appUser = new ApplicationUser
                 {
-                    UserName = user.Name,
-                    Email = user.Email
-                   
+                    Email = user.Email,
+                    Name = user.Name,
+                    Surname = user.SurName,
+                    SendVerificationCodeDate = DateTime.UtcNow
+                      
                 };
 
                 IdentityResult result = await _userManager.CreateAsync(appUser, user.Password);
@@ -48,25 +50,21 @@ namespace DigitusTestCase.WebAPP.Controllers
                 }
                 var token = await _userManager.GenerateEmailConfirmationTokenAsync(appUser);
                  
-                var confirmationLink= Url.Action("ConfirmEmail","Authentication",new {token,email=user.Email},Request.Scheme);
-
-                sendVerificationEmail(user, confirmationLink, token); 
-               
+                string confirmationLink= Url.Action("ConfirmEmail","Authentication",new {token,email=user.Email},Request.Scheme);
+                
+                sendVerificationEmail(user, confirmationLink);
+                
             }
             return View(user);
         }
-        private void sendVerificationEmail(User user,string link, string token)
+        private void sendVerificationEmail(User user,string link )
         {
             string message;
-           
-                // origin exists if request sent from browser single page app (e.g. Angular or React)
-                // so send link to verify via single page app
-                var verifyUrl = $"{link}";
-                message = $@"<p>Please click the below link to verify your email address:</p>
-                            <p><a href=""{verifyUrl}"">{verifyUrl}</a></p>";
-           
             
-
+            var verifyUrl = $"{link}";
+            message = $@"<p>Please click the below link to verify your email address:</p>
+                        <p><a href=""{verifyUrl}"">{verifyUrl}</a></p>";
+             
             _emailService.Send(
                 to: user.Email,
                 subject: "Sign-up Verification API - Verify Email",
