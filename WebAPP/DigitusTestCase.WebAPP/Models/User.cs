@@ -5,15 +5,15 @@ namespace DigitusTestCase.WebAPP.Models
     public class User
     {
         //Adını, soyadını, e-posta adresini ve şifresini kullanarak
-        [Required]
+      //  [Required]
         public string Name { get; set; }
-        [Required]
+      //  [Required]
         public string SurName { get; set; }
-        [Required]
+       // [Required]
         [EmailAddress(ErrorMessage = "Invalid Email")]
         public string Email { get; set; }
 
-        [Required]
+       // [Required]
         public string Password { get; set; }
         public string MailCode { get; set; }
         public bool IsActive { get; set; }

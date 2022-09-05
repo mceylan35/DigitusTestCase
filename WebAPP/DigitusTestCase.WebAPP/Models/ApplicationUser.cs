@@ -6,6 +6,8 @@ namespace DigitusTestCase.WebAPP.Models
     [CollectionName("Users")]
     public class ApplicationUser : MongoIdentityUser<Guid>
     {
-        
+        public string Name { get; set; }
+        public string Surname { get; set; }
+        public DateTime? SendVerificationCodeDate { get; set; }
     }
 }
