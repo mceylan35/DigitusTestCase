@@ -1,4 +1,5 @@
 ﻿using DigitusTestCase.WebAPP.Models;
+using DigitusTestCase.WebAPP.Services.UserService;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,39 +11,26 @@ namespace DigitusTestCase.WebAPP.Controllers
 {
     public class ReportController : Controller
     {
-        private UserManager<ApplicationUser> _userManager; 
-        public ReportController(UserManager<ApplicationUser> userManager)
+        private UserManager<ApplicationUser> _userManager;
+        private UserService _userService;
+        public ReportController(UserManager<ApplicationUser> userManager, UserService userService)
         {
             _userManager = userManager;
+            _userService = userService;
         }
 
         public IActionResult ListingByTimeRange(string date)
         {
-            var oneDate = DateTime.UtcNow.AddDays(-1);
-            _userManager.Users.Count(i => i.CreatedOn > oneDate && i.CreatedOn<DateTime.UtcNow);
-            return View();
+           
+            return View(_userService.ListingByTimeRange(date));
         }
         public IActionResult SentVerificationCodeButDidNotRegisterAfter(string date)
-        {
-             
-           var count= _userManager.Users.Count(i => i.EmailConfirmed == false && i.CreatedOn.AddDays(1) > DateTime.UtcNow);
-
-            return View(count);
+        { 
+            return View(_userService.SentVerificationCodeButDidNotRegisterAfter(data:date));
         }
         public  IActionResult CompleteLoginAverage(DateTime dateTime)
-        {
-            
-            var userList = _userManager.Users.Where(c => c.EmailConfirmed == true && c.CreatedOn.Date== dateTime.Date);
-            List<double> dateBetween = new List<double>();
-            foreach (var item in userList)
-            {
-                TimeSpan timeSpan = (DateTime)item.SendVerificationCodeDate - item.CreatedOn;
-                
-                dateBetween.Add(timeSpan.TotalSeconds);
-            }
-
-          
-            return View(dateBetween.Average());
+        { 
+            return View(_userService.CompleteLoginAverage(dateTime:dateTime));
         }
 
 
