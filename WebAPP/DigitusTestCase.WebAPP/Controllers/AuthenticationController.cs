@@ -1,5 +1,9 @@
-﻿using DigitusTestCase.WebAPP.Models;
+﻿using DigitusTestCase.WebAPP.Extensions;
+using DigitusTestCase.WebAPP.Models;
 using DigitusTestCase.WebAPP.Services.EmailService;
+using DigitusTestCase.WebAPP.Services.UserService;
+using DigitusTestCase.WebAPP.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
@@ -12,11 +16,13 @@ namespace DigitusTestCase.WebAPP.Controllers
         private UserManager<ApplicationUser> _userManager;
         private SignInManager<ApplicationUser> _signInManager;
         private readonly IEmailService _emailService;
-        public AuthenticationController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IEmailService emailService)
+        private readonly UserService _userService;
+        public AuthenticationController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IEmailService emailService, UserService userService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _emailService = emailService;
+            _userService = userService;
         }
         public IActionResult Register()
         {
@@ -26,8 +32,10 @@ namespace DigitusTestCase.WebAPP.Controllers
         [HttpPost]
         public async Task<IActionResult> Register(User user)
         {
-            user.SurName = "asd";
-            user.MailCode = "asdas";
+            user.SurName = "Ceylan";
+            user.Name = "Mehmet";
+           
+           // user.MailCode = "asdas";
           //  if (ModelState.IsValid)
             {
                 ApplicationUser appUser = new ApplicationUser
@@ -35,11 +43,12 @@ namespace DigitusTestCase.WebAPP.Controllers
                     Email = user.Email,
                     Name = user.Name,
                     Surname = user.SurName,
-                    SendVerificationCodeDate = DateTime.UtcNow
+                    SendVerificationCodeDate = DateTime.UtcNow,
+                    UserName = "mceylan35" + new Random().Next(5,1500)
                       
                 };
 
-                IdentityResult result = await _userManager.CreateAsync(appUser, user.Password);
+                IdentityResult result = await _userService.CreateAsync(appUser, user.Password);
                 if (!result.Succeeded)
                 {
                     foreach (var error in result.Errors)
@@ -48,12 +57,17 @@ namespace DigitusTestCase.WebAPP.Controllers
                     }
                     return View(user);
                 }
-                var token = await _userManager.GenerateEmailConfirmationTokenAsync(appUser);
+                var token = await _userService.GenerateEmailConfirmationTokenAsync(appUser);
                  
                 string confirmationLink= Url.Action("ConfirmEmail","Authentication",new {token,email=user.Email},Request.Scheme);
                 
                 sendVerificationEmail(user, confirmationLink);
-                
+                appUser.EmailConfirmed = true;
+                await _userService.UpdateAsync(appUser);
+               
+
+
+
             }
             return View(user);
         }
@@ -66,9 +80,8 @@ namespace DigitusTestCase.WebAPP.Controllers
                         <p><a href=""{verifyUrl}"">{verifyUrl}</a></p>";
              
             _emailService.Send(
-                to: user.Email,
-                subject: "Sign-up Verification API - Verify Email",
-                html: $@"<h4>Verify Email</h4>
+                userEmail: user.Email, 
+                confirmationLink: $@"<h4>Verify Email</h4>
                         <p>Thanks for registering!</p>
                         {message}"
             );
@@ -97,13 +110,13 @@ namespace DigitusTestCase.WebAPP.Controllers
         [HttpPost]
         public async Task<IActionResult> ResetPasswordIntent(string email)
         {
-            var user = await _userManager.FindByEmailAsync(email);
+            var user = await _userService.FindByEmailAsync(email);
             if (user==null)
             {
                 ModelState.AddModelError("", "User Not Found");
                 return View();
             }
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var token = await _userService.GeneratePasswordResetTokenAsync(user);
 
             string url =  Url.Action(action: "ResetPassword", 
                 controller: "Authentication", 
@@ -125,12 +138,12 @@ namespace DigitusTestCase.WebAPP.Controllers
         [HttpPost]
         public async Task<IActionResult> ResetPassword(string email, string token,string newPassword)
         {
-            var user =await _userManager.FindByEmailAsync(email);
+            var user =await _userService.FindByEmailAsync(email);
             if (user == null)
             {
                 ModelState.AddModelError("","User Not Found");
             }
-            var result = await _userManager.ResetPasswordAsync(user,token, newPassword);
+            var result = await _userService.ResetPasswordAsync(user,token, newPassword);
             if (!result.Succeeded)
             {
                 ModelState.AddModelError("", "Error");
@@ -145,13 +158,48 @@ namespace DigitusTestCase.WebAPP.Controllers
 
         public async Task<IActionResult> ConfirmEmail(string token, string email)
         {
-            var user = await _userManager.FindByEmailAsync(email);
+            var user = await _userService.FindByEmailAsync(email);
             if (user is null)
             {
                 return View("Error");
             }
-            var result = await _userManager.ConfirmEmailAsync(user, token);
+            var result = await _userService.ConfirmEmailAsync(user, token);
             return View(result.Succeeded?nameof(ConfirmEmail):"Error");
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult ForgotPassword()
+        {
+            return View();
+        }
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var user = await _userService.FindByIdAsync(model.Email);
+                if (user==null || (await _userService.IsEmailConfirmedAsync(user)))
+                {
+                    return RedirectToAction(nameof(ForgotPasswordConfirmation));
+                }
+
+                var code = await _userService.GeneratePasswordResetTokenAsync(user);
+                var callbackUrl = Url.ResetPasswordCallBackLink(user.Id.ToString(), code, Request.Scheme);
+                _emailService.Send(model.Email, $"Please reset your password by clicking here: <a href='{callbackUrl}'>link</a>");
+
+                return RedirectToAction(nameof(ForgotPasswordConfirmation));
+                 
+            }
+            return View(model);
+        }
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult ForgotPasswordConfirmation()
+        {
+            return View();
         }
 
         public async Task<IActionResult> LogOut()
