@@ -2,6 +2,6 @@
 {
     public interface IEmailService
     {
-        void Send(string to, string subject, string html, string from = null);
+        bool Send(string userEmail, string confirmationLink);
     }
 }
