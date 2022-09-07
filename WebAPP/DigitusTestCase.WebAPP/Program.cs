@@ -6,8 +6,7 @@ using DigitusTestCase.WebAPP.Settings;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System.Configuration; 
-using static Org.BouncyCastle.Math.EC.ECCurve;
+using System.Configuration;  
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
