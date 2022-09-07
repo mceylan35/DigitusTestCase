@@ -10,13 +10,13 @@ namespace DigitusTestCase.WebAPP.Models
       //  [Required]
         public string SurName { get; set; }
        // [Required]
-        [EmailAddress(ErrorMessage = "Invalid Email")]
+        //[EmailAddress(ErrorMessage = "Invalid Email")]
         public string Email { get; set; }
 
        // [Required]
         public string Password { get; set; }
-        public string MailCode { get; set; }
-        public bool IsActive { get; set; }
+       // public string MailCode { get; set; }
+       // public bool IsActive { get; set; }
 
     }
 }
