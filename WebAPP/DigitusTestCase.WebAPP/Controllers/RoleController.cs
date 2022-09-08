@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace DigitusTestCase.WebAPP.Controllers
 {
-    [Authorize(Roles = "Admin")]
+     [Authorize(Roles = "Admin")]
     public class RoleController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
