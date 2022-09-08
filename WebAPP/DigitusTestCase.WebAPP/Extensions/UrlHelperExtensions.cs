@@ -9,7 +9,7 @@ namespace DigitusTestCase.WebAPP.Extensions
         {
             return urlHelper.Action(
                 action: nameof(AuthenticationController.ResetPassword),
-                controller: "Account",
+                controller: "Authentication",
                 values: new { userId, code },
                 protocol: scheme);
         }
