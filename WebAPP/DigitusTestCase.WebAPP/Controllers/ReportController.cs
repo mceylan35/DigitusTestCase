@@ -1,16 +1,19 @@
 ﻿using DigitusTestCase.WebAPP.Models;
 using DigitusTestCase.WebAPP.Services.UserService;
 using DigitusTestCase.WebAPP.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Win32;
 using System;
+using System.Data;
 using System.Linq;
 using System.Security.Cryptography;
 
 namespace DigitusTestCase.WebAPP.Controllers
 {
+    [Authorize(Roles = "Admin")]
     public class ReportController : Controller
     {
         private UserManager<ApplicationUser> _userManager;
@@ -24,22 +27,22 @@ namespace DigitusTestCase.WebAPP.Controllers
         {
             ReportViewModel reportViewModel = new ReportViewModel();
             reportViewModel.CompleteLoginAverage = (int)_userService.CompleteLoginAverage(dateTime: DateTime.Now.AddDays(2)); 
-            reportViewModel.SentVerificationCodeButDidNotRegisterAfter = _userService.SentVerificationCodeButDidNotRegisterAfter(data: "");
-            reportViewModel.ListingByTimeRange = _userService.ListingByTimeRange(date:"");
+            reportViewModel.SentVerificationCodeButDidNotRegisterAfter = _userService.SentVerificationCodeButDidNotRegisterAfter(date: DateTime.Now.AddDays(1));
+            reportViewModel.ListingByTimeRange = _userService.ListingByTimeRange(date: DateTime.Now.AddDays(1));
             return View(reportViewModel);
         }
         public IActionResult ListingByTimeRange(string date)
         {
            
-            return Json(_userService.ListingByTimeRange(date));
+            return Json(_userService.ListingByTimeRange(DateTime.Parse(date)));
         }
         public IActionResult SentVerificationCodeButDidNotRegisterAfter(string date)
         { 
-            return Json(_userService.SentVerificationCodeButDidNotRegisterAfter(data:date));
+            return Json(_userService.SentVerificationCodeButDidNotRegisterAfter(date: DateTime.Parse(date)));
         }
-        public  IActionResult CompleteLoginAverage(DateTime dateTime)
+        public  IActionResult CompleteLoginAverage(string dateTime)
         { 
-            return Json(_userService.CompleteLoginAverage(dateTime:dateTime));
+            return Json(_userService.CompleteLoginAverage(dateTime: DateTime.Parse(dateTime)));
         }
 
 
