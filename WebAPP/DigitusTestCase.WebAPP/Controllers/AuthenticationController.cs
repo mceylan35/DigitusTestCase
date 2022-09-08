@@ -32,8 +32,7 @@ namespace DigitusTestCase.WebAPP.Controllers
         [HttpPost]
         public async Task<IActionResult> Register(User user)
         {
-            user.SurName = "Ceylan";
-            user.Name = "Mehmet";
+             
            
            // user.MailCode = "asdas";
           //  if (ModelState.IsValid)
@@ -42,13 +41,14 @@ namespace DigitusTestCase.WebAPP.Controllers
                 {
                     Email = user.Email,
                     Name = user.Name,
-                    Surname = user.SurName,
-                    SendVerificationCodeDate = DateTime.UtcNow,
-                    UserName = "mceylan35" + new Random().Next(5,1500)
+                    Surname = user.SurName, 
+                    UserName=user.UserName,
+                      
                       
                 };
 
                 IdentityResult result = await _userService.CreateAsync(appUser, user.Password);
+                await _userService.AddToRoleAsync(appUser, "Admin");
                 if (!result.Succeeded)
                 {
                     foreach (var error in result.Errors)
@@ -62,9 +62,10 @@ namespace DigitusTestCase.WebAPP.Controllers
                 string confirmationLink= Url.Action("ConfirmEmail","Authentication",new {token,email=user.Email},Request.Scheme);
                 
                 sendVerificationEmail(user, confirmationLink);
-                appUser.EmailConfirmed = true;
-                await _userService.UpdateAsync(appUser);
-               
+                
+
+                if (result.Succeeded)
+                    ViewBag.Message = "User Created Successfully";
 
 
 
@@ -91,17 +92,22 @@ namespace DigitusTestCase.WebAPP.Controllers
             return View();
         }
         [HttpPost]
-        public async Task<IActionResult> Login(string email,string password,string returnUrl)
+        public async Task<IActionResult> Login([Required]string email, [Required] string password,string returnUrl)
         {
             ApplicationUser appUser = await _userManager.FindByEmailAsync(email);
             if (appUser != null)
             {
-                var signInResult = await _signInManager.PasswordSignInAsync(appUser, password, false, false);
+                var signInResult = await _signInManager.PasswordSignInAsync(appUser, password, true, true);
                 if (signInResult.Succeeded)
                 {
+                   // await _signInManager.SignInAsync(signInResult, isPersistent: false);
                     return Redirect(returnUrl ?? "/");
                 }
-            }
+                if (signInResult.IsNotAllowed)
+                {
+                    ModelState.AddModelError(nameof(email), "Email Not Confirmed");
+                }
+            }else
             ModelState.AddModelError(nameof(email), "Invalid Email or Password");
 
             return View();
@@ -130,9 +136,64 @@ namespace DigitusTestCase.WebAPP.Controllers
              
 
         }
+
+
+
+        //[HttpGet]
+      //  [AllowAnonymous]
+        public IActionResult ResetPassword(string code)
+        {
+            if (code == null)
+            {
+                throw new ApplicationException("A code must be supplied for password reset.");
+            }
+            var model = new ResetPasswordViewModel { Code = code };
+            return View(model);
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user == null)
+            {
+                // Don't reveal that the user does not exist
+                return RedirectToAction(nameof(ResetPasswordConfirmation));
+            }
+            var result = await _userManager.ResetPasswordAsync(user, model.Code, model.Password);
+            if (result.Succeeded)
+            {
+                return RedirectToAction(nameof(ResetPasswordConfirmation));
+            }
+            AddErrors(result);
+            return View();
+        }
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult ResetPasswordConfirmation()
+        {
+            return View();
+        }
+         
+
+        private void AddErrors(IdentityResult result)
+        {
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError(string.Empty, error.Description);
+            }
+        }
+
+        /*
         public IActionResult ResetPassword(string email, string token)
         { 
-            //email token view yolla
+           
             return View();
         }
         [HttpPost]
@@ -155,7 +216,7 @@ namespace DigitusTestCase.WebAPP.Controllers
             }
            
         }
-
+        */
         public async Task<IActionResult> ConfirmEmail(string token, string email)
         {
             var user = await _userService.FindByEmailAsync(email);
@@ -163,6 +224,8 @@ namespace DigitusTestCase.WebAPP.Controllers
             {
                 return View("Error");
             }
+            user.MailConfirmationDate = DateTime.Now;
+            await _userService.UpdateAsync(user);
             var result = await _userService.ConfirmEmailAsync(user, token);
             return View(result.Succeeded?nameof(ConfirmEmail):"Error");
         }
@@ -171,29 +234,30 @@ namespace DigitusTestCase.WebAPP.Controllers
         [AllowAnonymous]
         public IActionResult ForgotPassword()
         {
+           
             return View();
         }
         [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        public async Task<IActionResult> ForgotPassword(string email)
         {
             if (ModelState.IsValid)
             {
-                var user = await _userService.FindByIdAsync(model.Email);
-                if (user==null || (await _userService.IsEmailConfirmedAsync(user)))
+                var user = await _userManager.FindByEmailAsync(email);
+                if (user==null || !(await _userManager.IsEmailConfirmedAsync(user)))
                 {
                     return RedirectToAction(nameof(ForgotPasswordConfirmation));
                 }
 
-                var code = await _userService.GeneratePasswordResetTokenAsync(user);
+                var code = await _userManager.GeneratePasswordResetTokenAsync(user);
                 var callbackUrl = Url.ResetPasswordCallBackLink(user.Id.ToString(), code, Request.Scheme);
-                _emailService.Send(model.Email, $"Please reset your password by clicking here: <a href='{callbackUrl}'>link</a>");
+                _emailService.Send(email, $"Please reset your password by clicking here: <a href='{callbackUrl}'>link</a>");
 
                 return RedirectToAction(nameof(ForgotPasswordConfirmation));
                  
             }
-            return View(model);
+            return View(email);
         }
         [HttpGet]
         [AllowAnonymous]
@@ -207,5 +271,12 @@ namespace DigitusTestCase.WebAPP.Controllers
             await _signInManager.SignOutAsync();
             return RedirectToAction("Index", "Home");
         }
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult AccessDenied()
+        {
+            return View();
+        }
+
     }
 }
