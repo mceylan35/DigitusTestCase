@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace DigitusTestCase.WebAPP.Hubs
 {
-    //[Authorize]
+    [Authorize]
     public class OnlineCountHub : Hub
     {
         private static readonly Dictionary<string, int> onlineUsers = new Dictionary<string, int>();
@@ -52,8 +52,8 @@ namespace DigitusTestCase.WebAPP.Hubs
         }
         public override Task OnConnectedAsync()
         {
-
-            ConnectionOpened(Context.ConnectionId);
+          
+            ConnectionOpened(Context.GetHttpContext().Request.Cookies[".AspNetCore.Identity.Application"]);
             base.OnConnectedAsync();
             Clients.All.SendAsync("updateCount", GetOnlineUsersCount());
             return Task.CompletedTask;
@@ -61,7 +61,7 @@ namespace DigitusTestCase.WebAPP.Hubs
         public override Task OnDisconnectedAsync(Exception? exception)
         {
 
-            ConnectionClosed(Context.ConnectionId);
+            ConnectionClosed(Context.GetHttpContext().Request.Cookies[".AspNetCore.Identity.Application"]);
             base.OnDisconnectedAsync(exception);
             Clients.All.SendAsync("updateCount", GetOnlineUsersCount());
             return Task.CompletedTask;
